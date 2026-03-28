@@ -535,7 +535,7 @@ def display_pipelines_tabular(pipelines: List[Dict[str, Any]], title: str = "Run
             ])
     
     # Build table using tabulate
-    if title == "Finished (Last 10 mins)":
+    if title == "Finished (Last 30 mins)":
         headers = ["#", "ID", "Name", "Status", "Finish Time", "Duration"]
     else:
         headers = ["#", "ID", "Name", "Status", "Duration"]
