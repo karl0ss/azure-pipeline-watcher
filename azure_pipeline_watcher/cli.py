@@ -527,7 +527,7 @@ def run_watcher() -> None:
         display_pipelines_tabular(running_pipelines, title="Running", polling_interval_minutes=polling_interval_minutes)
         
         # Display all finished pipelines
-        display_pipelines_tabular(finished_pipelines, title="Finished (Last 10 mins)", polling_interval_minutes=polling_interval_minutes)
+        display_pipelines_tabular(finished_pipelines, title="Finished (Last 10 mins)", print_header=False, polling_interval_minutes=polling_interval_minutes)
 
 
 if __name__ == "__main__":
