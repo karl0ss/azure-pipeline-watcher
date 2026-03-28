@@ -25,8 +25,8 @@ Update the `config.json` file with your Azure DevOps organization and project:
     "azure_devops": {
         "organization": "your-organization-name",
         "project": "your-project-name",
-        "polling_interval_minutes": 5
     }
+    "polling_interval_minutes": 5
 }
 ```
 
