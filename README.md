@@ -91,7 +91,7 @@ azure-pipeline-watcher
 ## Output Example
 
 ```
-Azure DevOps Pipeline Watcher
+Azure DevOps Pipeline Watcher v1.0.0
 Organization: https://dev.azure.com/myorg
 Project: myproject
 Polling Interval: 5 minutes
