@@ -1,0 +1,7 @@
+{
+    "azure_devops": {
+        "organization": "your-organization-name",
+        "project": "your-project-name"
+    },
+    "polling_interval_minutes": 5
+}

@@ -1,3 +1,8 @@
+# Azure DevOps SDK for Python
+azure-devops
+
+# Dependencies
 msrest
 python-dateutil
 tabulate
+requests

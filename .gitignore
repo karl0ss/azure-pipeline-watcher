@@ -1,2 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+*.pyc
+*.pyo
+*.noseids
+*.log
+build/
+dist/
+*.whl
+
+# Virtual Environment
 venv/
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Configuration files with sensitive data
 config.json
+copy.json
+*.json
+!*.sample
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Misc
+*.tmp
+*.temp
