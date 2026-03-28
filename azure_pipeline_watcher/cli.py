@@ -10,7 +10,7 @@ import subprocess
 import sys
 import time
 import webbrowser
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any
 from dateutil.parser import isoparse
 from tabulate import tabulate
@@ -309,14 +309,16 @@ def format_pipeline_info(run: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-def display_pipelines_tabular(pipelines: List[Dict[str, Any]], title: str = "Running", print_header: bool = True) -> None:
+def display_pipelines_tabular(pipelines: List[Dict[str, Any]], title: str = "Running", print_header: bool = True, polling_interval_minutes: int = 5) -> None:
     """
     Display pipelines in a tabular format.
     """
     if print_header:
-        # Print last poll timestamp only for the first table
+        # Print next poll timestamp based on polling interval
         now = datetime.now(timezone.utc).astimezone()
-        print(f"Last poll: {now.strftime('%Y-%m-%d %H:%M:%S')}")
+        next_poll = now.replace(second=0, microsecond=0)
+        next_poll = next_poll + timedelta(minutes=polling_interval_minutes - (now.minute % polling_interval_minutes))
+        print(f"Next poll: {next_poll.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"--- {title} Pipelines ---")
     
     if not pipelines:
@@ -430,11 +432,11 @@ def run_watcher() -> None:
     
     # List running pipelines and display in tabular format
     running_pipelines = list_running_pipelines(org_name, project_name, access_token, user_email, user_name)
-    display_pipelines_tabular(running_pipelines, title="Running", print_header=True)
+    display_pipelines_tabular(running_pipelines, title="Running", print_header=True, polling_interval_minutes=polling_interval_minutes)
     
     # Get finished pipelines from last 10 minutes
     finished_pipelines = list_finished_pipelines(org_name, project_name, access_token, user_email, user_name, minutes=10)
-    display_pipelines_tabular(finished_pipelines, title="Finished (Last 10 mins)", print_header=False)
+    display_pipelines_tabular(finished_pipelines, title="Finished (Last 10 mins)", print_header=False, polling_interval_minutes=polling_interval_minutes)
     
     # Start polling loop (runs continuously to monitor both running and new finished pipelines)
     print(f"\nStarting poll loop (every {polling_interval_minutes} minutes). Press Ctrl+C to exit.\n")
@@ -445,11 +447,11 @@ def run_watcher() -> None:
         
         # Re-fetch pipelines
         running_pipelines = list_running_pipelines(org_name, project_name, access_token, user_email, user_name)
-        display_pipelines_tabular(running_pipelines, title="Running")
+        display_pipelines_tabular(running_pipelines, title="Running", polling_interval_minutes=polling_interval_minutes)
         
         # Get finished pipelines from last 10 minutes
         finished_pipelines = list_finished_pipelines(org_name, project_name, access_token, user_email, user_name, minutes=10)
-        display_pipelines_tabular(finished_pipelines, title="Finished (Last 10 mins)")
+        display_pipelines_tabular(finished_pipelines, title="Finished (Last 10 mins)", polling_interval_minutes=polling_interval_minutes)
 
 
 if __name__ == "__main__":
