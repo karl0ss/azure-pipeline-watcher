@@ -318,8 +318,8 @@ def display_pipelines_tabular(pipelines: List[Dict[str, Any]], title: str = "Run
     if print_header:
         # Print next poll timestamp based on polling interval
         now = datetime.now(timezone.utc).astimezone()
-        next_poll = now.replace(second=0, microsecond=0)
-        next_poll = next_poll + timedelta(minutes=polling_interval_minutes - (now.minute % polling_interval_minutes))
+        from datetime import timedelta
+        next_poll = now + timedelta(minutes=polling_interval_minutes)
         print(f"Next poll: {next_poll.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"--- {title} Pipelines ---")
     
