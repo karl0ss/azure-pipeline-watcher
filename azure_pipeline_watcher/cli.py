@@ -19,9 +19,20 @@ import requests
 
 from . import __version__
 
+# Type aliases for better readability
+PipelineData = Dict[str, Any]
+PipelineList = List[Dict[str, Any]]
+
 
 def get_config_dir() -> str:
-    """Get the user's config directory."""
+    """
+    Get the user's config directory.
+
+    Returns:
+        The path to the configuration directory, which is platform-specific:
+        - Windows: %LOCALAPPDATA%\azure-pipeline-watcher
+        - Linux/macOS: ~/.config/azure-pipeline-watcher
+    """
     home = os.path.expanduser("~")
     if sys.platform == "win32":
         return os.path.join(home, "AppData", "Local", "azure-pipeline-watcher")
@@ -30,12 +41,25 @@ def get_config_dir() -> str:
 
 
 def get_config_path() -> str:
-    """Get the path to the config file."""
+    """
+    Get the path to the configuration file.
+
+    Returns:
+        The full path to config.json in the user's config directory.
+    """
     return os.path.join(get_config_dir(), "config.json")
 
 
 def load_config() -> Dict[str, Any]:
-    """Load configuration from JSON file."""
+    """
+    Load configuration from JSON file.
+
+    Returns:
+        The configuration dictionary loaded from config.json.
+
+    Raises:
+        SystemExit: If the config file is not found or contains invalid JSON.
+    """
     config_path = get_config_path()
     try:
         with open(config_path, "r") as f:
@@ -50,7 +74,15 @@ def load_config() -> Dict[str, Any]:
 
 
 def save_config(config: Dict[str, Any]) -> None:
-    """Save configuration to JSON file."""
+    """
+    Save configuration to JSON file.
+
+    Args:
+        config: The configuration dictionary to save.
+
+    Prints:
+        A confirmation message with the path where configuration was saved.
+    """
     config_dir = get_config_dir()
     os.makedirs(config_dir, exist_ok=True)
     config_path = get_config_path()
@@ -59,8 +91,25 @@ def save_config(config: Dict[str, Any]) -> None:
     print(f"Configuration saved to {config_path}")
 
 
-def init_config(organization: str = None, project: str = None) -> None:
-    """Initialize configuration file interactively or with provided values."""
+def init_config(organization: str | None = None, project: str | None = None) -> None:
+    """
+    Initialize configuration file interactively or with provided values.
+
+    Args:
+        organization: Azure DevOps organization name. If not provided,
+            the user will be prompted to enter it interactively.
+        project: Azure DevOps project name. If not provided,
+            the user will be prompted to enter it interactively.
+
+    The configuration is saved to config.json with the following structure:
+    {
+        "azure_devops": {
+            "organization": str,
+            "project": str
+        },
+        "polling_interval_minutes": int (default: 10)
+    }
+    """
     config_dir = get_config_dir()
     os.makedirs(config_dir, exist_ok=True)
     config_path = get_config_path()
@@ -82,7 +131,15 @@ def init_config(organization: str = None, project: str = None) -> None:
 
 
 def play_notification() -> None:
-    """Play a notification sound based on platform."""
+    """
+    Play a notification sound based on the current platform.
+
+    Platform-specific behavior:
+        - Windows: Uses winsound.Beep() to play a 800 Hz beep for 300ms
+        - macOS: Uses afplay to play the Glass.aiff system sound
+        - Linux: Tries paplay/aplay with common notification sound paths,
+            falls back to printing a bell character
+    """
     try:
         if sys.platform == 'win32':
             # Windows: Use winsound for a simple beep
@@ -130,7 +187,19 @@ def play_notification() -> None:
 
 
 def get_access_token() -> str:
-    """Get access token from Azure CLI."""
+    """
+    Get access token from Azure CLI.
+
+    Returns:
+        The access token string from Azure CLI.
+
+    Raises:
+        SystemExit: If the Azure CLI command fails (e.g., not logged in).
+
+    Note:
+        Uses resource ID 499b84ac-1321-427f-aa17-267ca6975798
+        which is for Azure DevOps resource.
+    """
     try:
         use_shell = sys.platform == 'win32'
         result = subprocess.run(
@@ -151,7 +220,12 @@ def get_access_token() -> str:
 def get_current_user_info() -> tuple[str, str]:
     """
     Get the email and username of the currently logged-in Azure user.
-    Returns (email, username) tuple.
+
+    Returns:
+        A tuple containing (email, username) of the currently logged-in user.
+
+    Raises:
+        SystemExit: If the Azure CLI command fails (e.g., not logged in).
     """
     try:
         use_shell = sys.platform == 'win32'
@@ -172,8 +246,16 @@ def get_current_user_info() -> tuple[str, str]:
         sys.exit(1)
 
 
-def parse_iso_datetime(value: str) -> datetime:
-    """Parse ISO format datetime string."""
+def parse_iso_datetime(value: str) -> datetime | None:
+    """
+    Parse ISO format datetime string.
+
+    Args:
+        value: The ISO format datetime string to parse.
+
+    Returns:
+        A datetime object if parsing succeeds, None otherwise.
+    """
     if not value:
         return None
     return isoparse(value)
@@ -182,6 +264,21 @@ def parse_iso_datetime(value: str) -> datetime:
 def list_running_pipelines(org_name: str, project: str, access_token: str, user_email: str, user_name: str) -> List[Dict[str, Any]]:
     """
     List all running pipelines in a project for the current user.
+
+    Args:
+        org_name: Azure DevOps organization name.
+        project: Project name within the organization.
+        access_token: Azure DevOps access token for authentication.
+        user_email: The email address of the current user.
+        user_name: The display name of the current user.
+
+    Returns:
+        A list of pipeline dictionaries that are currently running
+        and were triggered by the current user.
+
+    Note:
+        This function filters pipelines by checking if the user's name
+        or email appears in the 'requestedFor' field of the pipeline.
     """
     import urllib.parse
     project_name_encoded = urllib.parse.quote(project)
@@ -229,7 +326,22 @@ def list_running_pipelines(org_name: str, project: str, access_token: str, user_
 def list_finished_pipelines(org_name: str, project: str, access_token: str, user_email: str, user_name: str, minutes: int = 30) -> List[Dict[str, Any]]:
     """
     List all finished pipelines in a project for the current user within the last N minutes.
-    Includes pipelines with any finished state (completed, succeeded, failed, cancelled, partiallySucceeded).
+
+    Args:
+        org_name: Azure DevOps organization name.
+        project: Project name within the organization.
+        access_token: Azure DevOps access token for authentication.
+        user_email: The email address of the current user.
+        user_name: The display name of the current user.
+        minutes: Number of minutes back to look for finished pipelines (default: 30).
+
+    Returns:
+        A list of pipeline dictionaries that have finished within the specified
+        time window and were triggered by the current user.
+
+    Note:
+        This function filters pipelines by checking if the user's name
+        or email appears in the 'requestedFor' field of the pipeline.
     """
     import urllib.parse
     import datetime
@@ -301,6 +413,20 @@ def list_finished_pipelines(org_name: str, project: str, access_token: str, user
 def format_pipeline_info(run: Dict[str, Any]) -> Dict[str, Any]:
     """
     Extract and format key information from a pipeline/build run.
+
+    Args:
+        run: A pipeline/build run dictionary from the Azure DevOps API.
+
+    Returns:
+        A formatted dictionary containing extracted information including:
+        - id: Pipeline ID
+        - name: Pipeline name
+        - status: Pipeline status
+        - queue_time, start_time, finish_time: Parsed datetime objects
+        - url, build_url: URLs for the pipeline
+        - requested_for: Display name of the user who requested the build
+        - duration: String representation of the build duration
+        - finish_time_str: Formatted finish time string
     """
     result = {
         "id": run.get('id', 'N/A'),
@@ -362,6 +488,16 @@ def format_pipeline_info(run: Dict[str, Any]) -> Dict[str, Any]:
 def display_pipelines_tabular(pipelines: List[Dict[str, Any]], title: str = "Running", print_header: bool = True, polling_interval_minutes: int = 10) -> None:
     """
     Display pipelines in a tabular format.
+
+    Args:
+        pipelines: A list of pipeline dictionaries to display.
+        title: The title to display above the table (default: "Running").
+        print_header: Whether to print the next poll timestamp header (default: True).
+        polling_interval_minutes: The polling interval for calculating next poll time (default: 10).
+
+    Note:
+        When title is "Finished (Last 10 mins)", the table includes a "Finish Time" column.
+        Otherwise, it shows a simplified table with just ID, Name, Status, and Duration.
     """
     if print_header:
         # Print next poll timestamp based on polling interval
@@ -410,17 +546,33 @@ def display_pipelines_tabular(pipelines: List[Dict[str, Any]], title: str = "Run
 
 
 def clear_screen() -> None:
-    """Clear the terminal screen."""
+    """
+    Clear the terminal screen.
+
+    Platform-specific behavior:
+        - Windows: Uses 'cls' command
+        - Linux/macOS: Uses 'clear' command
+    """
     os.system('cls' if sys.platform == 'win32' else 'clear')
 
 
 def open_build_in_browser(build_url: str) -> None:
-    """Open build URL in default browser."""
+    """
+    Open build URL in the default browser.
+
+    Args:
+        build_url: The URL of the Azure DevOps build to open in the browser.
+    """
     webbrowser.open(build_url)
 
 
 def main() -> None:
-    """Main entry point for the pipeline watcher CLI."""
+    """
+    Main entry point for the pipeline watcher CLI.
+
+    This function sets up the argument parser, handles command-line arguments,
+    and routes execution to the appropriate subcommand handler (init or run).
+    """
     import argparse
     
     parser = argparse.ArgumentParser(
@@ -449,7 +601,23 @@ def main() -> None:
 
 
 def run_watcher() -> None:
-    """Run the pipeline watcher."""
+    """
+    Run the pipeline watcher.
+
+    This function is the main execution loop of the pipeline watcher. It:
+    1. Loads configuration from config.json
+    2. Gets Azure DevOps organization and project settings
+    3. Fetches the current user's access token
+    4. Displays running and finished pipelines
+    5. Enters an infinite polling loop to monitor for new pipelines
+
+    The watcher continuously monitors for:
+    - Running pipelines (displayed at each poll interval)
+    - New finished pipelines (triggers notification sound)
+
+    Note:
+        This function runs indefinitely until interrupted by Ctrl+C.
+    """
     config = load_config()
     
     azure_config = config.get("azure_devops", {})
