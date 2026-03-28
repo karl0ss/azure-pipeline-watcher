@@ -99,7 +99,7 @@ azure-pipeline-watcher
 Azure DevOps Pipeline Watcher v1.0.0
 Organization: https://dev.azure.com/myorg
 Project: myproject
-Polling Interval: 5 minutes
+Polling Interval: 10 minutes
 --------------------------------------------------
 Current User: user@example.com
 ---
