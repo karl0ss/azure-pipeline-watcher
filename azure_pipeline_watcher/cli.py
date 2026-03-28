@@ -17,6 +17,8 @@ from tabulate import tabulate
 
 import requests
 
+from . import __version__
+
 
 def get_config_dir() -> str:
     """Get the user's config directory."""
@@ -416,7 +418,7 @@ def run_watcher() -> None:
     
     org_url = f"https://dev.azure.com/{org_name}"
     
-    print(f"Azure DevOps Pipeline Watcher")
+    print(f"Azure DevOps Pipeline Watcher v{__version__}")
     print(f"Organization: {org_url}")
     print(f"Project: {project_name}")
     print(f"Polling Interval: {polling_interval_minutes} minutes")
