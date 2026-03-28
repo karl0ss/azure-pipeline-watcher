@@ -185,7 +185,7 @@ def play_notification() -> None:
         pass  # Silent fail if notification doesn't work
 
 
-def get_access_token() -> str:
+def get_access_token(credential: Any = None) -> str:
     """
     Get access token from Azure using Azure SDK.
     
@@ -194,6 +194,9 @@ def get_access_token() -> str:
     - Managed Identity
     - Service Principal with client secret/cert
     - Environment variables
+    
+    Args:
+        credential: Optional existing credential to refresh. If None, creates a new one.
     
     Returns:
         The access token string for Azure DevOps.
@@ -206,7 +209,8 @@ def get_access_token() -> str:
     """
     try:
         # Use DefaultAzureCredential which automatically uses az CLI login
-        credential = DefaultAzureCredential()
+        if credential is None:
+            credential = DefaultAzureCredential()
         token = credential.get_token("499b84ac-1321-427f-aa17-267ca6975798/.default")
         return token.token
     except Exception as e:
@@ -599,6 +603,29 @@ def main() -> None:
         run_watcher()
 
 
+def refresh_access_token_if_needed(credential: Any, org_name: str) -> str:
+    """
+    Refresh access token if it's about to expire or if we get a 401/403 error.
+    
+    Azure access tokens typically expire after 1 hour. We'll check if the token
+    is close to expiring and refresh it if needed.
+    
+    Args:
+        credential: The DefaultAzureCredential instance to use for token refresh.
+        org_name: Azure DevOps organization name (for error messages).
+    
+    Returns:
+        A valid access token string.
+    """
+    try:
+        token = credential.get_token("499b84ac-1321-427f-aa17-267ca6975798/.default")
+        return token.token
+    except Exception as e:
+        print(f"Warning: Failed to get/refresh Azure access token. Please run 'az login'.")
+        print(f"Details: {e}")
+        raise
+
+
 def run_watcher() -> None:
     """
     Run the pipeline watcher.
@@ -639,16 +666,22 @@ def run_watcher() -> None:
     print(f"Polling Interval: {polling_interval_minutes} minutes")
     print("-" * 50)
     
-    # Get access token
-    access_token = get_access_token()
+    # Create credential once at the start
+    credential = DefaultAzureCredential()
     
-    # Get current user info
+    # Get current user info first
     user_email, user_name = get_current_user_info()
     print(f"Current User: {user_email}")
     print("-" * 50)
     
     # Track seen pipeline IDs to detect new finished pipelines
     seen_pipeline_ids = set()
+    
+    # Get access token and display initial pipeline status
+    try:
+        access_token = get_access_token(credential)
+    except Exception:
+        sys.exit(1)
     
     # List running pipelines and display in tabular format
     running_pipelines = list_running_pipelines(org_name, project_name, access_token, user_email, user_name)
@@ -666,6 +699,12 @@ def run_watcher() -> None:
     while True:
         time.sleep(polling_interval_minutes * 60)  # Convert minutes to seconds
         clear_screen()
+        
+        # Refresh access token if needed before making API calls
+        try:
+            access_token = refresh_access_token_if_needed(credential, org_name)
+        except Exception:
+            sys.exit(1)
         
         # Get finished pipelines from last 10 minutes
         finished_pipelines = list_finished_pipelines(org_name, project_name, access_token, user_email, user_name, minutes=30)
@@ -689,7 +728,7 @@ def run_watcher() -> None:
             print(f"{'=' * 50}\n")
             play_notification()
         
-        # Re-fetch pipelines
+        # Re-fetch pipelines with fresh token
         running_pipelines = list_running_pipelines(org_name, project_name, access_token, user_email, user_name)
         display_pipelines_tabular(running_pipelines, title="Running", polling_interval_minutes=polling_interval_minutes)
         
