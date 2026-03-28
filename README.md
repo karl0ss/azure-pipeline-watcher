@@ -99,7 +99,7 @@ Polling Interval: 5 minutes
 Current User: user@example.com
 ---
 
-Last poll: 2026-03-28 11:40:20
+Next poll: 2026-03-28 11:40:20
 --- Running Pipelines ---
 
 # | ID | Name | Status | Duration | Finish Time
