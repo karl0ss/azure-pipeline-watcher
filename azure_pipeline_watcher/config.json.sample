@@ -3,5 +3,5 @@
         "organization": "your-organization-name",
         "project": "your-project-name"
     },
-    "polling_interval_minutes": 5
+    "polling_interval_minutes": 10
 }

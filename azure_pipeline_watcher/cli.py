@@ -75,7 +75,7 @@ def init_config(organization: str = None, project: str = None) -> None:
             "organization": organization,
             "project": project,
         },
-        "polling_interval_minutes": 5
+        "polling_interval_minutes": 10
     }
     
     save_config(config)
@@ -226,7 +226,7 @@ def list_running_pipelines(org_name: str, project: str, access_token: str, user_
         return []
 
 
-def list_finished_pipelines(org_name: str, project: str, access_token: str, user_email: str, user_name: str, minutes: int = 10) -> List[Dict[str, Any]]:
+def list_finished_pipelines(org_name: str, project: str, access_token: str, user_email: str, user_name: str, minutes: int = 30) -> List[Dict[str, Any]]:
     """
     List all finished pipelines in a project for the current user within the last N minutes.
     Includes pipelines with any finished state (completed, succeeded, failed, cancelled, partiallySucceeded).
@@ -359,7 +359,7 @@ def format_pipeline_info(run: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-def display_pipelines_tabular(pipelines: List[Dict[str, Any]], title: str = "Running", print_header: bool = True, polling_interval_minutes: int = 5) -> None:
+def display_pipelines_tabular(pipelines: List[Dict[str, Any]], title: str = "Running", print_header: bool = True, polling_interval_minutes: int = 10) -> None:
     """
     Display pipelines in a tabular format.
     """
@@ -456,8 +456,8 @@ def run_watcher() -> None:
     org_name = azure_config.get("organization")
     project_name = azure_config.get("project")
     
-    # Get polling interval from config, default to 5 minutes
-    polling_interval_minutes = config.get("polling_interval_minutes", 5)
+    # Get polling interval from config, default to 10 minutes
+    polling_interval_minutes = config.get("polling_interval_minutes", 10)
     
     if not org_name or not project_name:
         print("Error: Organization and project must be specified in config.json")
@@ -488,7 +488,7 @@ def run_watcher() -> None:
     display_pipelines_tabular(running_pipelines, title="Running", print_header=True, polling_interval_minutes=polling_interval_minutes)
     
     # Get finished pipelines from last 10 minutes
-    finished_pipelines = list_finished_pipelines(org_name, project_name, access_token, user_email, user_name, minutes=10)
+    finished_pipelines = list_finished_pipelines(org_name, project_name, access_token, user_email, user_name, minutes=30)
     for pipeline in finished_pipelines:
         seen_pipeline_ids.add(pipeline.get('id'))
     display_pipelines_tabular(finished_pipelines, title="Finished (Last 10 mins)", print_header=False, polling_interval_minutes=polling_interval_minutes)
@@ -501,7 +501,7 @@ def run_watcher() -> None:
         clear_screen()
         
         # Get finished pipelines from last 10 minutes
-        finished_pipelines = list_finished_pipelines(org_name, project_name, access_token, user_email, user_name, minutes=10)
+        finished_pipelines = list_finished_pipelines(org_name, project_name, access_token, user_email, user_name, minutes=30)
         
         # Check for new finished pipelines (those not in seen_pipeline_ids)
         new_finished_pipelines = []

@@ -54,11 +54,11 @@ The configuration file is automatically created at `azure-pipeline-watcher init`
         "organization": "your-organization-name",
         "project": "your-project-name"
     },
-    "polling_interval_minutes": 5
+    "polling_interval_minutes": 10
 }
 ```
 
-Optional `polling_interval_minutes` (default: 5) - Time in minutes between each poll of the pipeline status.
+Optional `polling_interval_minutes` (default: 10) - Time in minutes between each poll of the pipeline status.
 
 ## Usage
 
@@ -80,7 +80,7 @@ azure-pipeline-watcher
 ## Features
 
 - Shows all running pipelines for the current user
-- Shows recently finished pipelines from the last 10 minutes
+- Shows recently finished pipelines from the last 30 minutes
 - Shows pipeline name, ID, status, requester, start time, finish time, and duration
 - Uses Azure CLI authentication for seamless login
 - Filters pipelines by the currently logged-in user
@@ -112,12 +112,12 @@ Next poll: 2026-03-28 11:40:20
 1 | [12345](https://dev.azure.com/myorg/myproject/_build/results?buildId=12345) | Build and Test | inProgress | 4:50:40 |
 2 | [12346](https://dev.azure.com/myorg/myproject/_build/results?buildId=12346) | Deploy to Prod | inProgress | 1:26:32 |
 
---- Finished (Last 10 mins) ---
+--- Finished (Last 30 mins) ---
 
 # | ID | Name | Status | Finish Time | Duration
 -- | -- | ---- | ------ | ----------- | --------
 1 | [12340](https://dev.azure.com/myorg/myproject/_build/results?buildId=12340) | Build PR #42 | succeeded | 10:35:22 | 0:15:33
 
 Total running pipelines: 2
-Total finished pipelines (last 10 mins): 1
+Total finished pipelines (last 30 mins): 1
 ```
