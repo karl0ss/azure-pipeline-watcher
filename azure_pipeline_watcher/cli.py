@@ -9,20 +9,13 @@ import os
 import sys
 import time
 import webbrowser
+import requests
+import subprocess
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional
 from dateutil.parser import isoparse
 from tabulate import tabulate
-
-import requests
-
-# Try to import Azure SDK for better token handling
-try:
-    from azure.identity import DefaultAzureCredential
-    AZURE_SDK_AVAILABLE = True
-except ImportError:
-    AZURE_SDK_AVAILABLE = False
-
+from azure.identity import DefaultAzureCredential
 from . import __version__
 
 # Type aliases for better readability
@@ -211,11 +204,6 @@ def get_access_token() -> str:
     Note:
         Resource ID 499b84ac-1321-427f-aa17-267ca6975798 is for Azure DevOps.
     """
-    if not AZURE_SDK_AVAILABLE:
-        print("Error: Azure SDK (azure-identity) not installed.")
-        print("Please run: pip install azure-identity")
-        sys.exit(1)
-    
     try:
         # Use DefaultAzureCredential which automatically uses az CLI login
         credential = DefaultAzureCredential()
