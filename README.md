@@ -87,6 +87,11 @@ azure-pipeline-watcher
 - Clickable build IDs in output (click to open in browser)
 - Continuous polling loop with configurable interval
 - Tabular output format
+- **Auto-detects new finished pipelines** - Highlights pipelines that finished since the last poll
+- **Notification sound** - Plays a platform-specific sound when new pipelines finish (Windows: `.wav`, macOS: system sounds, Linux: `.ogg`/`.wav`)
+- **Clear screen on each poll** - Refreshes the display for a clean view
+- **Configurable polling interval** - Set via `polling_interval_minutes` in config
+- **Interactive init command** - Setup can be done interactively or with command-line arguments
 
 ## Output Example
 
