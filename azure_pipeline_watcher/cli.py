@@ -1,21 +1,27 @@
 """
 Azure Pipeline Watcher - Monitor Azure DevOps pipelines.
-
+ 
 This module provides the CLI interface for the pipeline watcher.
 """
 
 import json
 import os
-import subprocess
 import sys
 import time
 import webbrowser
 from datetime import datetime, timedelta, timezone
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from dateutil.parser import isoparse
 from tabulate import tabulate
 
 import requests
+
+# Try to import Azure SDK for better token handling
+try:
+    from azure.identity import DefaultAzureCredential
+    AZURE_SDK_AVAILABLE = True
+except ImportError:
+    AZURE_SDK_AVAILABLE = False
 
 from . import __version__
 
@@ -188,32 +194,37 @@ def play_notification() -> None:
 
 def get_access_token() -> str:
     """
-    Get access token from Azure CLI.
-
+    Get access token from Azure using Azure SDK.
+    
+    Uses the DefaultAzureCredential which supports multiple authentication methods:
+    - Azure CLI login (az login)
+    - Managed Identity
+    - Service Principal with client secret/cert
+    - Environment variables
+    
     Returns:
-        The access token string from Azure CLI.
-
+        The access token string for Azure DevOps.
+    
     Raises:
-        SystemExit: If the Azure CLI command fails (e.g., not logged in).
-
+        SystemExit: If no valid credentials are available.
+    
     Note:
-        Uses resource ID 499b84ac-1321-427f-aa17-267ca6975798
-        which is for Azure DevOps resource.
+        Resource ID 499b84ac-1321-427f-aa17-267ca6975798 is for Azure DevOps.
     """
+    if not AZURE_SDK_AVAILABLE:
+        print("Error: Azure SDK (azure-identity) not installed.")
+        print("Please run: pip install azure-identity")
+        sys.exit(1)
+    
     try:
-        use_shell = sys.platform == 'win32'
-        result = subprocess.run(
-            ["az", "account", "get-access-token", "--resource", "499b84ac-1321-427f-aa17-267ca6975798", "--out", "json"],
-            capture_output=True,
-            text=True,
-            check=True,
-            shell=use_shell
-        )
-        token_info = json.loads(result.stdout)
-        return token_info["accessToken"]
-    except subprocess.CalledProcessError as e:
-        print("Error: Failed to get Azure access token. Please run 'az login' first.")
-        print(f"Details: {e.stderr}")
+        # Use DefaultAzureCredential which automatically uses az CLI login
+        credential = DefaultAzureCredential()
+        token = credential.get_token("499b84ac-1321-427f-aa17-267ca6975798/.default")
+        return token.token
+    except Exception as e:
+        print("Error: Failed to get Azure access token.")
+        print("Please run 'az login' to authenticate with Azure.")
+        print(f"Details: {e}")
         sys.exit(1)
 
 
