@@ -81,6 +81,54 @@ def init_config(organization: str = None, project: str = None) -> None:
     save_config(config)
 
 
+def play_notification() -> None:
+    """Play a notification sound based on platform."""
+    try:
+        if sys.platform == 'win32':
+            # Windows: Use winsound for a simple beep
+            import winsound
+            # Beep at 800 Hz for 300ms
+            winsound.Beep(800, 300)
+        elif sys.platform == 'darwin':
+            # macOS: Use afplay with a system sound
+            subprocess.run(
+                ["afplay", "/System/Library/Sounds/Glass.aiff"],
+                capture_output=True,
+                check=False
+            )
+        else:
+            # Linux: Use paplay or aplay with a sample sound if available
+            # Try various common Linux notification sounds
+            sound_files = [
+                "/usr/share/sounds/notifications/basso.ogg",
+                "/usr/share/sounds/gnome-default-alert.ogg",
+                "/usr/share/sounds/popcorn.wav",
+            ]
+            for sound_file in sound_files:
+                if os.path.exists(sound_file):
+                    try:
+                        subprocess.run(
+                            ["paplay", sound_file],
+                            capture_output=True,
+                            check=False
+                        )
+                        return
+                    except FileNotFoundError:
+                        try:
+                            subprocess.run(
+                                ["aplay", sound_file],
+                                capture_output=True,
+                                check=False
+                            )
+                            return
+                        except FileNotFoundError:
+                            continue
+            # Fallback: print a bell character
+            print('\a', end='')
+    except Exception:
+        pass  # Silent fail if notification doesn't work
+
+
 def get_access_token() -> str:
     """Get access token from Azure CLI."""
     try:
@@ -432,12 +480,17 @@ def run_watcher() -> None:
     print(f"Current User: {user_email}")
     print("-" * 50)
     
+    # Track seen pipeline IDs to detect new finished pipelines
+    seen_pipeline_ids = set()
+    
     # List running pipelines and display in tabular format
     running_pipelines = list_running_pipelines(org_name, project_name, access_token, user_email, user_name)
     display_pipelines_tabular(running_pipelines, title="Running", print_header=True, polling_interval_minutes=polling_interval_minutes)
     
     # Get finished pipelines from last 10 minutes
     finished_pipelines = list_finished_pipelines(org_name, project_name, access_token, user_email, user_name, minutes=10)
+    for pipeline in finished_pipelines:
+        seen_pipeline_ids.add(pipeline.get('id'))
     display_pipelines_tabular(finished_pipelines, title="Finished (Last 10 mins)", print_header=False, polling_interval_minutes=polling_interval_minutes)
     
     # Start polling loop (runs continuously to monitor both running and new finished pipelines)
@@ -447,12 +500,33 @@ def run_watcher() -> None:
         time.sleep(polling_interval_minutes * 60)  # Convert minutes to seconds
         clear_screen()
         
+        # Get finished pipelines from last 10 minutes
+        finished_pipelines = list_finished_pipelines(org_name, project_name, access_token, user_email, user_name, minutes=10)
+        
+        # Check for new finished pipelines (those not in seen_pipeline_ids)
+        new_finished_pipelines = []
+        for pipeline in finished_pipelines:
+            pipeline_id = pipeline.get('id')
+            if pipeline_id not in seen_pipeline_ids:
+                new_finished_pipelines.append(pipeline)
+                seen_pipeline_ids.add(pipeline_id)
+        
+        # Play notification if new pipelines finished
+        if new_finished_pipelines:
+            print(f"\n{'=' * 50}")
+            print(f"NOTIFICATION: New pipeline(s) finished!")
+            print(f"{'=' * 50}")
+            for pipeline in new_finished_pipelines:
+                info = format_pipeline_info(pipeline)
+                print(f"  - [{info['status'].upper()}] {info['name']} (ID: {info['id']})")
+            print(f"{'=' * 50}\n")
+            play_notification()
+        
         # Re-fetch pipelines
         running_pipelines = list_running_pipelines(org_name, project_name, access_token, user_email, user_name)
         display_pipelines_tabular(running_pipelines, title="Running", polling_interval_minutes=polling_interval_minutes)
         
-        # Get finished pipelines from last 10 minutes
-        finished_pipelines = list_finished_pipelines(org_name, project_name, access_token, user_email, user_name, minutes=10)
+        # Display all finished pipelines
         display_pipelines_tabular(finished_pipelines, title="Finished (Last 10 mins)", polling_interval_minutes=polling_interval_minutes)
 
 
