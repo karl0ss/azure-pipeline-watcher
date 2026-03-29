@@ -691,7 +691,7 @@ def run_watcher() -> None:
     finished_pipelines = list_finished_pipelines(org_name, project_name, access_token, user_email, user_name, minutes=30)
     for pipeline in finished_pipelines:
         seen_pipeline_ids.add(pipeline.get('id'))
-    display_pipelines_tabular(finished_pipelines, title="Finished (Last 10 mins)", print_header=False, polling_interval_minutes=polling_interval_minutes)
+    display_pipelines_tabular(finished_pipelines, title="Finished (Last 30 mins)", print_header=False, polling_interval_minutes=polling_interval_minutes)
     
     # Start polling loop (runs continuously to monitor both running and new finished pipelines)
     print(f"\nStarting poll loop (every {polling_interval_minutes} minutes). Press Ctrl+C to exit.\n")
