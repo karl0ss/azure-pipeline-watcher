@@ -444,17 +444,9 @@ def format_pipeline_info(run: Dict[str, Any]) -> Dict[str, Any]:
         - duration: String representation of the build duration
         - finish_time_str: Formatted finish time string
     """
-    # Map Azure DevOps status to user-friendly status
+    raw_result = run.get('result', '')
     raw_status = run.get('status', 'N/A')
-    status_mapping = {
-        'completed': 'passed',
-        'succeeded': 'passed',
-        'partiallySucceeded': 'partial',
-        'failed': 'failed',
-        'cancelled': 'cancelled',
-        'canceled': 'cancelled',
-    }
-    friendly_status = status_mapping.get(raw_status, raw_status)
+    friendly_status = raw_result if raw_result else raw_status
     
     result = {
         "id": run.get('id', 'N/A'),
