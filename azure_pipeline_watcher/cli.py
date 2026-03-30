@@ -437,17 +437,29 @@ def format_pipeline_info(run: Dict[str, Any]) -> Dict[str, Any]:
         A formatted dictionary containing extracted information including:
         - id: Pipeline ID
         - name: Pipeline name
-        - status: Pipeline status
+        - status: Pipeline status (mapped to user-friendly values)
         - queue_time, start_time, finish_time: Parsed datetime objects
         - url, build_url: URLs for the pipeline
         - requested_for: Display name of the user who requested the build
         - duration: String representation of the build duration
         - finish_time_str: Formatted finish time string
     """
+    # Map Azure DevOps status to user-friendly status
+    raw_status = run.get('status', 'N/A')
+    status_mapping = {
+        'completed': 'passed',
+        'succeeded': 'passed',
+        'partiallySucceeded': 'partial',
+        'failed': 'failed',
+        'cancelled': 'cancelled',
+        'canceled': 'cancelled',
+    }
+    friendly_status = status_mapping.get(raw_status, raw_status)
+    
     result = {
         "id": run.get('id', 'N/A'),
         "name": run.get('name', 'N/A'),
-        "status": run.get('status', 'N/A'),
+        "status": friendly_status,
         "queue_time": None,
         "start_time": None,
         "finish_time": None,
