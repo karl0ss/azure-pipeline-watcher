@@ -185,7 +185,7 @@ def play_notification() -> None:
         pass  # Silent fail if notification doesn't work
 
 
-def get_access_token(credential: Any = None) -> str:
+def get_access_token(credential: Any = None, max_retries: int = 3) -> tuple[str, Any]:
     """
     Get access token from Azure using Azure SDK.
     
@@ -197,27 +197,40 @@ def get_access_token(credential: Any = None) -> str:
     
     Args:
         credential: Optional existing credential to refresh. If None, creates a new one.
+        max_retries: Maximum number of retry attempts (default: 3).
     
     Returns:
-        The access token string for Azure DevOps.
+        A tuple of (access_token_string, credential_instance).
+        The credential instance may be newly created if the original failed.
     
     Raises:
-        SystemExit: If no valid credentials are available.
+        SystemExit: If no valid credentials are available after all retries.
     
     Note:
         Resource ID 499b84ac-1321-427f-aa17-267ca6975798 is for Azure DevOps.
     """
-    try:
-        # Use DefaultAzureCredential which automatically uses az CLI login
-        if credential is None:
-            credential = DefaultAzureCredential()
-        token = credential.get_token("499b84ac-1321-427f-aa17-267ca6975798/.default")
-        return token.token
-    except Exception as e:
-        print("Error: Failed to get Azure access token.")
-        print("Please run 'az login' to authenticate with Azure.")
-        print(f"Details: {e}")
-        sys.exit(1)
+    import time
+    
+    for attempt in range(max_retries):
+        try:
+            # Use DefaultAzureCredential which automatically uses az CLI login
+            if credential is None:
+                credential = DefaultAzureCredential()
+            token = credential.get_token("499b84ac-1321-427f-aa17-267ca6975798/.default")
+            return token.token, credential
+        except Exception as e:
+            if attempt < max_retries - 1:
+                # Create a fresh credential and retry
+                print(f"Warning: Failed to get access token (attempt {attempt + 1}/{max_retries}). Creating fresh credential...")
+                print(f"Details: {e}")
+                time.sleep(1)  # Brief pause before retry
+                credential = DefaultAzureCredential()
+            else:
+                # Final attempt failed
+                print(f"Error: Failed to get Azure access token after {max_retries} attempts.")
+                print("Please run 'az login' to authenticate with Azure.")
+                print(f"Details: {e}")
+                sys.exit(1)
 
 
 def get_current_user_info() -> tuple[str, str]:
@@ -603,27 +616,45 @@ def main() -> None:
         run_watcher()
 
 
-def refresh_access_token_if_needed(credential: Any, org_name: str) -> str:
+def refresh_access_token_if_needed(credential: Any, org_name: str, max_retries: int = 3) -> tuple[str, Any]:
     """
     Refresh access token if it's about to expire or if we get a 401/403 error.
     
     Azure access tokens typically expire after 1 hour. We'll check if the token
-    is close to expiring and refresh it if needed.
+    is close to expiring and refresh it if needed. If refresh fails, creates a
+    fresh credential and retries.
     
     Args:
         credential: The DefaultAzureCredential instance to use for token refresh.
         org_name: Azure DevOps organization name (for error messages).
+        max_retries: Maximum number of retry attempts (default: 3).
     
     Returns:
-        A valid access token string.
+        A tuple of (access_token_string, credential_instance).
+        The credential instance may be newly created if the original failed.
+    
+    Raises:
+        Exception: If all retry attempts fail.
     """
-    try:
-        token = credential.get_token("499b84ac-1321-427f-aa17-267ca6975798/.default")
-        return token.token
-    except Exception as e:
-        print(f"Warning: Failed to get/refresh Azure access token. Please run 'az login'.")
-        print(f"Details: {e}")
-        raise
+    import time
+    
+    for attempt in range(max_retries):
+        try:
+            token = credential.get_token("499b84ac-1321-427f-aa17-267ca6975798/.default")
+            return token.token, credential
+        except Exception as e:
+            if attempt < max_retries - 1:
+                # Create a fresh credential and retry
+                print(f"Warning: Token refresh failed (attempt {attempt + 1}/{max_retries}). Creating fresh credential...")
+                print(f"Details: {e}")
+                time.sleep(1)  # Brief pause before retry
+                credential = DefaultAzureCredential()
+            else:
+                # Final attempt failed
+                print(f"Error: Failed to get/refresh Azure access token after {max_retries} attempts.")
+                print("Please run 'az login' to authenticate with Azure.")
+                print(f"Details: {e}")
+                raise
 
 
 def run_watcher() -> None:
@@ -679,7 +710,7 @@ def run_watcher() -> None:
     
     # Get access token and display initial pipeline status
     try:
-        access_token = get_access_token(credential)
+        access_token, credential = get_access_token(credential)
     except Exception:
         sys.exit(1)
     
@@ -702,7 +733,7 @@ def run_watcher() -> None:
         
         # Refresh access token if needed before making API calls
         try:
-            access_token = refresh_access_token_if_needed(credential, org_name)
+            access_token, credential = refresh_access_token_if_needed(credential, org_name)
         except Exception:
             sys.exit(1)
         
