@@ -512,7 +512,7 @@ def display_pipelines_tabular(pipelines: List[Dict[str, Any]], title: str = "Run
         polling_interval_minutes: The polling interval for calculating next poll time (default: 10).
 
     Note:
-        When title is "Finished (Last 10 mins)", the table includes a "Finish Time" column.
+        When title is "Finished (Last 30 mins)", the table includes a "Finish Time" column.
         Otherwise, it shows a simplified table with just ID, Name, Status, and Duration.
     """
     if print_header:
@@ -533,7 +533,7 @@ def display_pipelines_tabular(pipelines: List[Dict[str, Any]], title: str = "Run
         info = format_pipeline_info(run)
         # Format build ID with hyperlink - click to open in browser
         build_link = f"\033]8;;{info['build_url']}\033\\{info['id']}\033]8;;\033\\"
-        if title == "Finished (Last 10 mins)" and info['finish_time_str']:
+        if title == "Finished (Last 30 mins)" and info['finish_time_str']:
             data.append([
                 str(i),
                 build_link,
@@ -764,7 +764,7 @@ def run_watcher() -> None:
         display_pipelines_tabular(running_pipelines, title="Running", polling_interval_minutes=polling_interval_minutes)
         
         # Display all finished pipelines
-        display_pipelines_tabular(finished_pipelines, title="Finished (Last 10 mins)", print_header=False, polling_interval_minutes=polling_interval_minutes)
+        display_pipelines_tabular(finished_pipelines, title="Finished (Last 30 mins)", print_header=False, polling_interval_minutes=polling_interval_minutes)
 
 
 if __name__ == "__main__":
