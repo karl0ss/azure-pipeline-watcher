@@ -339,9 +339,9 @@ def list_running_pipelines(org_name: str, project: str, access_token: str, user_
         return []
 
 
-def list_finished_pipelines(org_name: str, project: str, access_token: str, user_email: str, user_name: str, minutes: int = 30) -> List[Dict[str, Any]]:
+def list_finished_pipelines(org_name: str, project: str, access_token: str, user_email: str, user_name: str, since_time: Optional[datetime] = None) -> List[Dict[str, Any]]:
     """
-    List all finished pipelines in a project for the current user within the last N minutes.
+    List all finished pipelines in a project for the current user.
 
     Args:
         org_name: Azure DevOps organization name.
@@ -349,22 +349,17 @@ def list_finished_pipelines(org_name: str, project: str, access_token: str, user
         access_token: Azure DevOps access token for authentication.
         user_email: The email address of the current user.
         user_name: The display name of the current user.
-        minutes: Number of minutes back to look for finished pipelines (default: 30).
+        since_time: Optional start time - if provided, only pipelines finished after this time are returned.
 
     Returns:
-        A list of pipeline dictionaries that have finished within the specified
-        time window and were triggered by the current user.
+        A list of pipeline dictionaries that have finished and were triggered by the current user.
 
     Note:
         This function filters pipelines by checking if the user's name
         or email appears in the 'requestedFor' field of the pipeline.
     """
     import urllib.parse
-    import datetime
     project_name_encoded = urllib.parse.quote(project)
-    
-    # Calculate cutoff time
-    cutoff_time = datetime.datetime.now(timezone.utc) - datetime.timedelta(minutes=minutes)
     
     # Get all builds without status filter (to get all finished states)
     builds_url = f"https://dev.azure.com/{org_name}/{project_name_encoded}/_apis/build/builds?api-version=7.1&$expand=definition"
@@ -406,8 +401,8 @@ def list_finished_pipelines(org_name: str, project: str, access_token: str, user
             if finish_time.tzinfo is None:
                 finish_time = finish_time.replace(tzinfo=timezone.utc)
             
-            # Check if within time window
-            if finish_time < cutoff_time:
+            # Check if finished after the since_time (if provided)
+            if since_time and finish_time < since_time:
                 continue
             
             # Check if this build was triggered by the current user
@@ -711,6 +706,7 @@ def run_watcher() -> None:
     
     # Track all finished pipelines seen since script started
     finished_pipelines_history = {}  # Dict mapping pipeline_id -> pipeline data
+    script_start_time = datetime.now(timezone.utc)  # Track when script started
     
     # Get access token and display initial pipeline status
     try:
@@ -722,8 +718,8 @@ def run_watcher() -> None:
     running_pipelines = list_running_pipelines(org_name, project_name, access_token, user_email, user_name)
     display_pipelines_tabular(running_pipelines, title="Running", print_header=True, polling_interval_minutes=polling_interval_minutes)
     
-    # Get all finished pipelines and store in history
-    finished_pipelines = list_finished_pipelines(org_name, project_name, access_token, user_email, user_name, minutes=30)
+    # Get all finished pipelines since script started and store in history
+    finished_pipelines = list_finished_pipelines(org_name, project_name, access_token, user_email, user_name, since_time=script_start_time)
     for pipeline in finished_pipelines:
         pipeline_id = pipeline.get('id')
         finished_pipelines_history[pipeline_id] = pipeline
@@ -742,8 +738,8 @@ def run_watcher() -> None:
         except Exception:
             sys.exit(1)
         
-        # Get all finished pipelines and check for new ones
-        finished_pipelines = list_finished_pipelines(org_name, project_name, access_token, user_email, user_name, minutes=30)
+        # Get all finished pipelines since script started and check for new ones
+        finished_pipelines = list_finished_pipelines(org_name, project_name, access_token, user_email, user_name, since_time=script_start_time)
         
         # Check for new finished pipelines (those not in history)
         new_finished_pipelines = []
