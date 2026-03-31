@@ -516,7 +516,7 @@ def display_pipelines_tabular(pipelines: List[Dict[str, Any]], title: str = "Run
         polling_interval_minutes: The polling interval for calculating next poll time (default: 10).
 
     Note:
-        When title is "Finished (Last 30 mins)", the table includes a "Finish Time" column.
+        When title is "Finished Pipelines", the table includes a "Finish Time" column.
         Otherwise, it shows a simplified table with just ID, Name, Status, and Duration.
     """
     if print_header:
@@ -537,7 +537,7 @@ def display_pipelines_tabular(pipelines: List[Dict[str, Any]], title: str = "Run
         info = format_pipeline_info(run)
         # Format build ID with hyperlink - click to open in browser
         build_link = f"\033]8;;{info['build_url']}\033\\{info['id']}\033]8;;\033\\"
-        if title == "Finished (Last 30 mins)" and info['finish_time_str']:
+        if title == "Finished Pipelines" and info['finish_time_str']:
             data.append([
                 str(i),
                 build_link,
@@ -556,7 +556,7 @@ def display_pipelines_tabular(pipelines: List[Dict[str, Any]], title: str = "Run
             ])
     
     # Build table using tabulate
-    if title == "Finished (Last 30 mins)":
+    if title == "Finished Pipelines":
         headers = ["#", "ID", "Name", "Status", "Finish Time", "Duration"]
     else:
         headers = ["#", "ID", "Name", "Status", "Duration"]
@@ -709,8 +709,8 @@ def run_watcher() -> None:
     print(f"Current User: {user_email}")
     print("-" * 50)
     
-    # Track seen pipeline IDs to detect new finished pipelines
-    seen_pipeline_ids = set()
+    # Track all finished pipelines seen since script started
+    finished_pipelines_history = {}  # Dict mapping pipeline_id -> pipeline data
     
     # Get access token and display initial pipeline status
     try:
@@ -722,11 +722,12 @@ def run_watcher() -> None:
     running_pipelines = list_running_pipelines(org_name, project_name, access_token, user_email, user_name)
     display_pipelines_tabular(running_pipelines, title="Running", print_header=True, polling_interval_minutes=polling_interval_minutes)
     
-    # Get finished pipelines from last 10 minutes
+    # Get all finished pipelines and store in history
     finished_pipelines = list_finished_pipelines(org_name, project_name, access_token, user_email, user_name, minutes=30)
     for pipeline in finished_pipelines:
-        seen_pipeline_ids.add(pipeline.get('id'))
-    display_pipelines_tabular(finished_pipelines, title="Finished (Last 30 mins)", print_header=False, polling_interval_minutes=polling_interval_minutes)
+        pipeline_id = pipeline.get('id')
+        finished_pipelines_history[pipeline_id] = pipeline
+    display_pipelines_tabular(list(finished_pipelines_history.values()), title="Finished Pipelines", print_header=False, polling_interval_minutes=polling_interval_minutes)
     
     # Start polling loop (runs continuously to monitor both running and new finished pipelines)
     print(f"\nStarting poll loop (every {polling_interval_minutes} minutes). Press Ctrl+C to exit.\n")
@@ -741,16 +742,16 @@ def run_watcher() -> None:
         except Exception:
             sys.exit(1)
         
-        # Get finished pipelines from last 10 minutes
+        # Get all finished pipelines and check for new ones
         finished_pipelines = list_finished_pipelines(org_name, project_name, access_token, user_email, user_name, minutes=30)
         
-        # Check for new finished pipelines (those not in seen_pipeline_ids)
+        # Check for new finished pipelines (those not in history)
         new_finished_pipelines = []
         for pipeline in finished_pipelines:
             pipeline_id = pipeline.get('id')
-            if pipeline_id not in seen_pipeline_ids:
+            if pipeline_id not in finished_pipelines_history:
                 new_finished_pipelines.append(pipeline)
-                seen_pipeline_ids.add(pipeline_id)
+                finished_pipelines_history[pipeline_id] = pipeline
         
         # Play notification if new pipelines finished
         if new_finished_pipelines:
@@ -767,8 +768,8 @@ def run_watcher() -> None:
         running_pipelines = list_running_pipelines(org_name, project_name, access_token, user_email, user_name)
         display_pipelines_tabular(running_pipelines, title="Running", polling_interval_minutes=polling_interval_minutes)
         
-        # Display all finished pipelines
-        display_pipelines_tabular(finished_pipelines, title="Finished (Last 30 mins)", print_header=False, polling_interval_minutes=polling_interval_minutes)
+        # Display all finished pipelines from history
+        display_pipelines_tabular(list(finished_pipelines_history.values()), title="Finished Pipelines", print_header=False, polling_interval_minutes=polling_interval_minutes)
 
 
 if __name__ == "__main__":
